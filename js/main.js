@@ -69,8 +69,8 @@ export default class Main {
       return;
     }
 
-    // 多种露出形态
-    const tipShapes = ['center', 'left', 'right', 'double', 'leftCurl', 'rightCurl', 'wavy'];
+    // 多种露出形态 - 方形纸巾的角
+    const tipShapes = ['singleCorner', 'cornerLeft', 'cornerRight', 'diamond', 'foldedCorner', 'twoCorners', 'crumpled'];
 
     // 折叠层 - 真正的折叠遮挡效果
     const numFolds = Math.floor(Math.random() * 3); // 0-2个折叠层
@@ -231,14 +231,14 @@ export default class Main {
     ctx.textAlign = 'center';
     ctx.fillText('抽纸巾', screenWidth / 2, 75);
 
-    // 绘制顺序
+    // 绘制顺序（落下的纸巾在盒子后面）
+    this.drawFallingTissues();
     this.drawBoxBody();
     this.drawBoxTop();
     this.drawSlotDepth();
     this.drawCurrentTissue();
     this.drawSlotRim();
     this.drawTissueCounter();
-    this.drawFallingTissues();
 
     if (this.tissueCount > 0 && !this.isDragging) {
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -450,62 +450,85 @@ export default class Main {
 
     // ===== 3. 高光 =====
     ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    let hlX = cx - 3;
-    if (t.tipShape === 'left' || t.tipShape === 'leftCurl') hlX = cx - w * 0.12;
-    else if (t.tipShape === 'right' || t.tipShape === 'rightCurl') hlX = cx + w * 0.08;
+    let hlX = cx;
+    if (t.tipShape === 'cornerLeft') hlX = cx - w * 0.1;
+    else if (t.tipShape === 'cornerRight') hlX = cx + w * 0.1;
     ctx.beginPath();
-    ctx.ellipse(hlX, tipY + 14, 5, 3, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(hlX, tipY + 18, 6, 3, -0.1, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
 
-  // 绘制纸巾轮廓形状
+  // 绘制纸巾轮廓形状 - 方形纸巾的角露出
   drawTissueShape(shape, cx, w, tipY, exposed, baseY) {
+    // 纸巾是方形的，露出来的是角或边
     switch (shape) {
-      case 'left':
-        ctx.quadraticCurveTo(cx - w * 0.45, tipY + exposed * 0.5, cx - w * 0.3, tipY + exposed * 0.15);
-        ctx.quadraticCurveTo(cx - w * 0.15, tipY - 5, cx - w * 0.05, tipY);
-        ctx.quadraticCurveTo(cx + w * 0.1, tipY + 8, cx + w * 0.25, tipY + exposed * 0.35);
-        ctx.quadraticCurveTo(cx + w * 0.4, tipY + exposed * 0.55, cx + w * 0.4, baseY);
+      case 'cornerLeft':
+        // 左边角露出 - 斜着的方形角
+        ctx.lineTo(cx - w * 0.38, tipY + exposed * 0.6);
+        ctx.lineTo(cx - w * 0.35, tipY + exposed * 0.15);
+        ctx.lineTo(cx - w * 0.1, tipY);
+        ctx.lineTo(cx + w * 0.15, tipY + exposed * 0.08);
+        ctx.lineTo(cx + w * 0.35, tipY + exposed * 0.4);
+        ctx.lineTo(cx + w * 0.38, baseY);
         break;
-      case 'right':
-        ctx.quadraticCurveTo(cx - w * 0.4, tipY + exposed * 0.55, cx - w * 0.25, tipY + exposed * 0.35);
-        ctx.quadraticCurveTo(cx - w * 0.1, tipY + 8, cx + w * 0.05, tipY);
-        ctx.quadraticCurveTo(cx + w * 0.15, tipY - 5, cx + w * 0.3, tipY + exposed * 0.15);
-        ctx.quadraticCurveTo(cx + w * 0.45, tipY + exposed * 0.5, cx + w * 0.4, baseY);
+      case 'cornerRight':
+        // 右边角露出
+        ctx.lineTo(cx - w * 0.38, tipY + exposed * 0.4);
+        ctx.lineTo(cx - w * 0.15, tipY + exposed * 0.08);
+        ctx.lineTo(cx + w * 0.1, tipY);
+        ctx.lineTo(cx + w * 0.35, tipY + exposed * 0.15);
+        ctx.lineTo(cx + w * 0.38, tipY + exposed * 0.6);
+        ctx.lineTo(cx + w * 0.38, baseY);
         break;
-      case 'double':
-        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.4, cx - w * 0.28, tipY + exposed * 0.1);
-        ctx.quadraticCurveTo(cx - w * 0.15, tipY - 3, cx - w * 0.08, tipY + 5);
-        ctx.quadraticCurveTo(cx, tipY + exposed * 0.18, cx + w * 0.08, tipY + 5);
-        ctx.quadraticCurveTo(cx + w * 0.15, tipY - 3, cx + w * 0.28, tipY + exposed * 0.1);
-        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.4, cx + w * 0.4, baseY);
+      case 'diamond':
+        // 菱形角露出 - 中间尖
+        ctx.lineTo(cx - w * 0.35, tipY + exposed * 0.55);
+        ctx.lineTo(cx - w * 0.2, tipY + exposed * 0.2);
+        ctx.lineTo(cx, tipY);
+        ctx.lineTo(cx + w * 0.2, tipY + exposed * 0.2);
+        ctx.lineTo(cx + w * 0.35, tipY + exposed * 0.55);
+        ctx.lineTo(cx + w * 0.38, baseY);
         break;
-      case 'leftCurl':
-        ctx.quadraticCurveTo(cx - w * 0.5, tipY + exposed * 0.3, cx - w * 0.35, tipY + exposed * 0.08);
-        ctx.bezierCurveTo(cx - w * 0.25, tipY - 8, cx - w * 0.1, tipY - 5, cx, tipY + 3);
-        ctx.quadraticCurveTo(cx + w * 0.2, tipY + exposed * 0.25, cx + w * 0.35, tipY + exposed * 0.4);
-        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.6, cx + w * 0.4, baseY);
+      case 'foldedCorner':
+        // 折叠的角 - 一个角折过来
+        ctx.lineTo(cx - w * 0.38, tipY + exposed * 0.5);
+        ctx.lineTo(cx - w * 0.25, tipY + exposed * 0.12);
+        ctx.lineTo(cx - w * 0.05, tipY + exposed * 0.05);
+        ctx.lineTo(cx + w * 0.1, tipY);
+        ctx.lineTo(cx + w * 0.25, tipY + exposed * 0.15);
+        ctx.lineTo(cx + w * 0.38, tipY + exposed * 0.45);
+        ctx.lineTo(cx + w * 0.38, baseY);
         break;
-      case 'rightCurl':
-        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.6, cx - w * 0.35, tipY + exposed * 0.4);
-        ctx.quadraticCurveTo(cx - w * 0.2, tipY + exposed * 0.25, cx, tipY + 3);
-        ctx.bezierCurveTo(cx + w * 0.1, tipY - 5, cx + w * 0.25, tipY - 8, cx + w * 0.35, tipY + exposed * 0.08);
-        ctx.quadraticCurveTo(cx + w * 0.5, tipY + exposed * 0.3, cx + w * 0.4, baseY);
+      case 'twoCorners':
+        // 两个角露出
+        ctx.lineTo(cx - w * 0.38, tipY + exposed * 0.4);
+        ctx.lineTo(cx - w * 0.22, tipY + exposed * 0.05);
+        ctx.lineTo(cx - w * 0.05, tipY + exposed * 0.18);
+        ctx.lineTo(cx + w * 0.05, tipY + exposed * 0.18);
+        ctx.lineTo(cx + w * 0.22, tipY + exposed * 0.05);
+        ctx.lineTo(cx + w * 0.38, tipY + exposed * 0.4);
+        ctx.lineTo(cx + w * 0.38, baseY);
         break;
-      case 'wavy':
-        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.5, cx - w * 0.3, tipY + exposed * 0.2);
-        ctx.quadraticCurveTo(cx - w * 0.18, tipY + 2, cx - w * 0.08, tipY + exposed * 0.12);
-        ctx.quadraticCurveTo(cx, tipY - 2, cx + w * 0.08, tipY + exposed * 0.12);
-        ctx.quadraticCurveTo(cx + w * 0.18, tipY + 2, cx + w * 0.3, tipY + exposed * 0.2);
-        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.5, cx + w * 0.4, baseY);
+      case 'crumpled':
+        // 皱巴巴的 - 但还是有棱角
+        ctx.lineTo(cx - w * 0.36, tipY + exposed * 0.5);
+        ctx.lineTo(cx - w * 0.28, tipY + exposed * 0.25);
+        ctx.lineTo(cx - w * 0.12, tipY + exposed * 0.1);
+        ctx.lineTo(cx + w * 0.05, tipY);
+        ctx.lineTo(cx + w * 0.18, tipY + exposed * 0.15);
+        ctx.lineTo(cx + w * 0.32, tipY + exposed * 0.35);
+        ctx.lineTo(cx + w * 0.38, tipY + exposed * 0.55);
+        ctx.lineTo(cx + w * 0.38, baseY);
         break;
-      default: // center
-        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.55, cx - w * 0.25, tipY + exposed * 0.25);
-        ctx.quadraticCurveTo(cx - w * 0.1, tipY + 5, cx, tipY);
-        ctx.quadraticCurveTo(cx + w * 0.1, tipY + 5, cx + w * 0.25, tipY + exposed * 0.25);
-        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.55, cx + w * 0.4, baseY);
+      default: // singleCorner - 单角露出
+        ctx.lineTo(cx - w * 0.35, tipY + exposed * 0.5);
+        ctx.lineTo(cx - w * 0.15, tipY + exposed * 0.15);
+        ctx.lineTo(cx, tipY);
+        ctx.lineTo(cx + w * 0.15, tipY + exposed * 0.15);
+        ctx.lineTo(cx + w * 0.35, tipY + exposed * 0.5);
+        ctx.lineTo(cx + w * 0.38, baseY);
     }
   }
 
