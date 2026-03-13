@@ -39,6 +39,12 @@ export default class Main {
     this.dragStartY = 0;
 
     this.time = 0;
+    this.currentLevel = 1; // 当前关卡
+
+    // 通关状态
+    this.isVictory = false;
+    this.confetti = []; // 撒花粒子
+    this.victoryTime = 0;
 
     this.colors = {
       boxMain: '#3498DB',
@@ -93,9 +99,20 @@ export default class Main {
 
   bindTouch() {
     wx.onTouchStart((e) => {
+      const touch = e.touches[0];
+
+      // 检测主页按钮点击
+      const btnX = 20;
+      const btnY = 40;
+      const btnSize = 36;
+      if (touch.clientX >= btnX && touch.clientX <= btnX + btnSize &&
+          touch.clientY >= btnY && touch.clientY <= btnY + btnSize) {
+        this.onHomeClick();
+        return;
+      }
+
       if (!this.currentTissue || this.currentTissue.pulled) return;
 
-      const touch = e.touches[0];
       const cx = this.slotX + this.slotWidth / 2;
       const tipY = this.slotY - this.tissueExposed - this.currentPull;
 
@@ -130,6 +147,25 @@ export default class Main {
         this.pullOut();
       } else {
         this.currentPull = 0;
+      }
+    });
+  }
+
+  onHomeClick() {
+    // 返回主页逻辑（暂时弹出提示）
+    wx.showModal({
+      title: '返回主页',
+      content: '确定要返回主页吗？',
+      success: (res) => {
+        if (res.confirm) {
+          // 这里可以跳转到主页，暂时重置游戏
+          this.tissueCount = this.totalTissues;
+          this.pulledCount = 0;
+          this.fallingTissues = [];
+          this.confetti = [];
+          this.isVictory = false;
+          this.createTissue();
+        }
       }
     });
   }
@@ -186,10 +222,14 @@ export default class Main {
     ctx.fillStyle = '#F2E8DC';
     ctx.fillRect(0, 0, screenWidth, screenHeight);
 
+    // 左上角主页按钮
+    this.drawHomeButton();
+
+    // 标题
     ctx.fillStyle = '#333';
     ctx.font = 'bold 26px PingFang SC, Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('抽纸巾', screenWidth / 2, 48);
+    ctx.fillText('抽纸巾', screenWidth / 2, 75);
 
     // 绘制顺序
     this.drawBoxBody();
@@ -208,8 +248,58 @@ export default class Main {
     }
 
     if (this.tissueCount <= 0 && !this.currentTissue) {
-      this.drawGameOver();
+      this.drawVictory();
     }
+  }
+
+  drawHomeButton() {
+    const btnX = 20;
+    const btnY = 40;
+    const btnSize = 36;
+
+    // 按钮背景
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.beginPath();
+    ctx.arc(btnX + btnSize / 2, btnY + btnSize / 2, btnSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 房子图标
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const hx = btnX + btnSize / 2;
+    const hy = btnY + btnSize / 2;
+
+    // 屋顶
+    ctx.beginPath();
+    ctx.moveTo(hx - 10, hy - 2);
+    ctx.lineTo(hx, hy - 10);
+    ctx.lineTo(hx + 10, hy - 2);
+    ctx.stroke();
+
+    // 房体
+    ctx.beginPath();
+    ctx.moveTo(hx - 8, hy - 2);
+    ctx.lineTo(hx - 8, hy + 8);
+    ctx.lineTo(hx + 8, hy + 8);
+    ctx.lineTo(hx + 8, hy - 2);
+    ctx.stroke();
+
+    // 门
+    ctx.beginPath();
+    ctx.moveTo(hx - 2, hy + 8);
+    ctx.lineTo(hx - 2, hy + 2);
+    ctx.lineTo(hx + 2, hy + 2);
+    ctx.lineTo(hx + 2, hy + 8);
+    ctx.stroke();
+
+    // 关卡数字（在按钮下方）
+    ctx.fillStyle = '#666';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`第${this.currentLevel}关`, btnX + btnSize / 2, btnY + btnSize + 18);
   }
 
   drawBoxBody() {
@@ -580,41 +670,121 @@ export default class Main {
     });
   }
 
-  drawGameOver() {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  drawVictory() {
+    // 初始化通关状态
+    if (!this.isVictory) {
+      this.isVictory = true;
+      this.victoryTime = 0;
+      this.createConfetti();
+    }
+
+    this.victoryTime += 0.016;
+
+    // 半透明背景
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(0, 0, screenWidth, screenHeight);
 
-    const bw = screenWidth * 0.65;
-    const bh = 105;
-    const bx = (screenWidth - bw) / 2;
-    const by = (screenHeight - bh) / 2;
+    // 撒花动画
+    this.updateConfetti();
+    this.drawConfetti();
 
-    ctx.fillStyle = '#FFF';
-    this.roundRect(bx, by, bw, bh, 12);
-    ctx.fill();
+    const centerY = screenHeight * 0.4;
 
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 20px PingFang SC, Arial';
+    // 大拇指
+    ctx.font = '80px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('纸巾用完啦~', screenWidth / 2, by + 38);
+    ctx.textBaseline = 'middle';
 
-    ctx.fillStyle = '#888';
-    ctx.font = '13px PingFang SC, Arial';
-    ctx.fillText(`共抽了 ${this.pulledCount} 张`, screenWidth / 2, by + 62);
-    ctx.fillText('点击屏幕再来一盒', screenWidth / 2, by + 85);
+    // 大拇指弹跳动画
+    const bounce = Math.sin(this.victoryTime * 3) * 5;
+    ctx.fillText('👍', screenWidth / 2, centerY - 20 + bounce);
 
+    // 通关文字
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 48px PingFang SC, Arial';
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 3;
+    ctx.fillText('通关', screenWidth / 2, centerY + 70);
+    ctx.shadowColor = 'transparent';
+
+    // 提示文字
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.font = '16px PingFang SC, Arial';
+    ctx.fillText('点击屏幕继续', screenWidth / 2, centerY + 130);
+
+    ctx.textBaseline = 'alphabetic';
+
+    // 绑定重新开始
     if (!this.restartBound) {
       this.restartBound = true;
       const handler = () => {
         this.tissueCount = this.totalTissues;
         this.pulledCount = 0;
         this.fallingTissues = [];
+        this.confetti = [];
+        this.isVictory = false;
         this.createTissue();
         this.restartBound = false;
         wx.offTouchStart(handler);
       };
-      setTimeout(() => wx.onTouchStart(handler), 100);
+      setTimeout(() => wx.onTouchStart(handler), 500);
     }
+  }
+
+  createConfetti() {
+    this.confetti = [];
+    const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#A8D8EA'];
+
+    for (let i = 0; i < 80; i++) {
+      this.confetti.push({
+        x: Math.random() * screenWidth,
+        y: -20 - Math.random() * 200,
+        size: 6 + Math.random() * 8,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.2,
+        vx: (Math.random() - 0.5) * 3,
+        vy: 2 + Math.random() * 3,
+        shape: Math.random() > 0.5 ? 'rect' : 'circle',
+        wobble: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  updateConfetti() {
+    this.confetti.forEach(c => {
+      c.y += c.vy;
+      c.x += c.vx + Math.sin(c.wobble) * 0.5;
+      c.wobble += 0.1;
+      c.rotation += c.rotationSpeed;
+      c.vx *= 0.99;
+
+      // 循环
+      if (c.y > screenHeight + 20) {
+        c.y = -20;
+        c.x = Math.random() * screenWidth;
+      }
+    });
+  }
+
+  drawConfetti() {
+    this.confetti.forEach(c => {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rotation);
+      ctx.fillStyle = c.color;
+
+      if (c.shape === 'rect') {
+        ctx.fillRect(-c.size / 2, -c.size / 4, c.size, c.size / 2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, c.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    });
   }
 
   loop() {
