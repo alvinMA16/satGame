@@ -57,16 +57,12 @@ export default class Main {
     };
 
     // ===== 第二关：卷纸 =====
-    this.rollCenterX = screenWidth * 0.58;
-    this.rollCenterY = screenHeight * 0.32;
-    this.rollMaxRadius = 70; // 最大半径（满卷）
-    this.rollCoreRadius = 22; // 卷芯半径
+    this.rollMaxRadius = 65; // 最大半径（满卷）
+    this.rollCoreRadius = 20; // 卷芯半径
     this.rollRadius = this.rollMaxRadius; // 当前半径
     this.rollPaperLength = 0; // 已拉出的纸长度
-    this.rollDragY = 0; // 拖拽位置
-    this.rollHangLength = 180; // 自然下垂长度
-    this.rollPaperWidth = 90; // 纸的宽度
-    this.rollTotalPaper = 1000; // 总纸量（像素长度）
+    this.rollHangLength = 200; // 自然下垂长度
+    this.rollTotalPaper = 1200; // 总纸量（像素长度）
     this.rollUsedPaper = 0; // 已用纸量
     this.tornPapers = []; // 撕下来的纸
 
@@ -92,7 +88,7 @@ export default class Main {
     this.rollPaperLength = 0;
     this.rollUsedPaper = 0;
     this.tornPapers = [];
-    this.rollHangLength = 40;
+    this.rollHangLength = 280; // 初始下垂长度
   }
 
   createTissue() {
@@ -173,16 +169,19 @@ export default class Main {
         }
       } else if (this.currentLevel === 2) {
         // 第二关：卷纸 - 纸在卷纸左边
-        const cx = this.rollCenterX + 30;
+        const rollX = screenWidth * 0.62;
+        const rollY = screenHeight * 0.3;
         const r = this.rollRadius;
-        const paperStartX = cx - r - 10;
-        const paperTopY = this.rollCenterY - r * 0.3 + 50;
-        const paperBottomY = paperTopY + this.rollHangLength + this.rollPaperLength;
+        const thickness = 95;
+        const paperLeft = rollX - thickness - r * 0.35;
+        const paperTop = rollY - r * 0.5 + 55;
+        const paperBottom = Math.min(paperTop + this.rollHangLength, screenHeight);
 
-        if (touch.clientX >= paperStartX - 20 &&
-            touch.clientX <= paperStartX + this.rollPaperWidth + 40 &&
-            touch.clientY >= paperTopY - 30 &&
-            touch.clientY <= paperBottomY + 50) {
+        // 点击纸的任何位置都可以拖动
+        if (touch.clientX >= paperLeft - 30 &&
+            touch.clientX <= paperLeft + thickness + 60 &&
+            touch.clientY >= paperTop - 50 &&
+            touch.clientY <= screenHeight) {
           this.isDragging = true;
           this.dragStartY = touch.clientY;
         }
@@ -202,20 +201,20 @@ export default class Main {
           this.pullOut();
         }
       } else if (this.currentLevel === 2) {
-        // 卷纸：往下拉
+        // 卷纸：往下拉，纸会一直变长
         const pull = e.touches[0].clientY - this.dragStartY;
         if (pull > 0 && this.rollUsedPaper < this.rollTotalPaper) {
-          const pullAmount = pull * 0.5; // 拉动系数
-          this.rollPaperLength = Math.min(pullAmount, screenHeight * 0.5);
+          // 纸变长
+          this.rollHangLength += pull * 0.8;
 
           // 更新已用纸量和半径
-          const newUsed = Math.min(this.rollUsedPaper + pull * 0.3, this.rollTotalPaper);
-          if (newUsed > this.rollUsedPaper) {
-            this.rollUsedPaper = newUsed;
-            // 半径随纸量减少而减小
-            const usedRatio = this.rollUsedPaper / this.rollTotalPaper;
-            this.rollRadius = this.rollCoreRadius + (this.rollMaxRadius - this.rollCoreRadius) * (1 - usedRatio);
-          }
+          const newUsed = Math.min(this.rollUsedPaper + pull * 0.5, this.rollTotalPaper);
+          this.rollUsedPaper = newUsed;
+
+          // 半径随纸量减少而减小
+          const usedRatio = this.rollUsedPaper / this.rollTotalPaper;
+          this.rollRadius = this.rollCoreRadius + (this.rollMaxRadius - this.rollCoreRadius) * (1 - usedRatio);
+
           this.dragStartY = e.touches[0].clientY;
         }
       }
@@ -235,27 +234,8 @@ export default class Main {
           this.currentPull = 0;
         }
       } else if (this.currentLevel === 2) {
-        // 卷纸松手：纸飘落
-        if (this.rollPaperLength > 30) {
-          const cx = this.rollCenterX + 30;
-          const r = this.rollRadius;
-          const paperStartX = cx - r - 10;
-          const paperTopY = this.rollCenterY - r * 0.3 + 50;
-
-          this.tornPapers.push({
-            x: paperStartX + this.rollPaperWidth / 2,
-            y: paperTopY + this.rollHangLength / 2 + this.rollPaperLength / 2,
-            width: this.rollPaperWidth,
-            height: this.rollHangLength + this.rollPaperLength,
-            rotation: (Math.random() - 0.5) * 0.2,
-            rotationSpeed: (Math.random() - 0.5) * 0.05,
-            vx: (Math.random() - 0.5) * 2,
-            vy: 2,
-            gravity: 0.15
-          });
-        }
-        this.rollPaperLength = 0;
-        this.rollHangLength = 40; // 重置下垂长度
+        // 卷纸松手：纸保持当前长度，不会断
+        // 什么都不做，纸保持拉出来的状态
       }
     });
   }
@@ -346,19 +326,7 @@ export default class Main {
         }
       }
     } else if (this.currentLevel === 2) {
-      // 第二关：更新撕下的卷纸
-      for (let i = this.tornPapers.length - 1; i >= 0; i--) {
-        const p = this.tornPapers[i];
-        p.vy += p.gravity;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.rotation += p.rotationSpeed;
-        p.vx *= 0.98;
-
-        if (p.y > screenHeight + 100) {
-          this.tornPapers.splice(i, 1);
-        }
-      }
+      // 第二关：纸连续拉出，不需要更新飘落的纸
     }
   }
 
@@ -495,9 +463,6 @@ export default class Main {
     // 重绘主页按钮（粉色背景上用白色）
     this.drawHomeButtonLevel2();
 
-    // 撕下的纸（在后面）
-    this.drawTornPapers();
-
     // 卷纸和下垂的纸
     this.drawRollPaperNew();
 
@@ -550,97 +515,112 @@ export default class Main {
 
   // ===== 第二关绘制函数 =====
   drawRollPaperNew() {
-    const cx = this.rollCenterX + 30; // 稍微偏右
-    const cy = this.rollCenterY;
-    const r = this.rollRadius;
-    const core = this.rollCoreRadius;
-    const paperWidth = this.rollPaperWidth;
-    const hangLen = this.rollHangLength + this.rollPaperLength;
+    const rollX = screenWidth * 0.62; // 卷纸端面中心X
+    const rollY = screenHeight * 0.3; // 卷纸端面中心Y
+    const r = this.rollRadius; // 卷纸半径
+    const core = this.rollCoreRadius; // 卷芯半径
+    const thickness = 95; // 卷纸厚度（圆柱长度）
+    const hangLen = this.rollHangLength; // 纸的长度
+    const paperW = thickness; // 纸的宽度等于卷纸厚度
 
-    // ===== 1. 先画下垂的纸（在卷纸后面的部分）=====
+    // 斜视角参数
+    const ellipseRatioY = 0.92; // 椭圆Y轴压缩比
+
     if (this.rollUsedPaper < this.rollTotalPaper) {
-      // 纸从卷纸顶部弯曲下来
-      const paperStartX = cx - r - 10;
-      const paperTopY = cy - r * 0.3;
-      const paperBottomY = paperTopY + hangLen;
+      // ===== 1. 画垂下的纸 =====
+      const paperLeft = rollX - thickness - r * 0.35;
+      const paperRight = paperLeft + paperW;
+      const paperTop = rollY - r * 0.5;
+      const paperBottom = Math.min(paperTop + hangLen, screenHeight + 50);
 
-      // 纸的主体（矩形部分）
+      // 纸的主体
       ctx.fillStyle = '#FEFEFE';
       ctx.beginPath();
-      ctx.moveTo(paperStartX, paperTopY + 50);
-      ctx.lineTo(paperStartX, paperBottomY);
-      ctx.lineTo(paperStartX + paperWidth, paperBottomY);
-      ctx.lineTo(paperStartX + paperWidth, paperTopY + 50);
+      ctx.moveTo(paperLeft, paperTop + 55);
+      ctx.lineTo(paperLeft, paperBottom);
+      ctx.lineTo(paperRight, paperBottom);
+      ctx.lineTo(paperRight, paperTop + 55);
       ctx.closePath();
       ctx.fill();
 
-      // 弯曲的顶部（连接卷纸）
+      // ===== 2. 画弯曲过渡部分（纸从卷纸绕出来）=====
+      ctx.fillStyle = '#FEFEFE';
       ctx.beginPath();
-      ctx.moveTo(paperStartX + paperWidth, paperTopY + 50);
+      ctx.moveTo(paperRight, paperTop + 55);
+      // 弯曲到卷纸顶部
       ctx.quadraticCurveTo(
-        paperStartX + paperWidth + 20, paperTopY,
-        cx - r * 0.7, cy - r + 5
+        paperRight + 25, paperTop + 5,
+        rollX - r * 0.4, rollY - r * ellipseRatioY + 8
       );
-      // 卷纸表面弧线
-      ctx.arc(cx, cy, r, -Math.PI * 0.85, -Math.PI * 0.5, false);
-      ctx.lineTo(cx, cy - r);
+      // 沿着卷纸顶部
       ctx.quadraticCurveTo(
-        paperStartX + paperWidth * 0.5, paperTopY - 10,
-        paperStartX, paperTopY + 50
+        rollX, rollY - r * ellipseRatioY - 3,
+        rollX + r * 0.15, rollY - r * ellipseRatioY + 5
+      );
+      // 往回绕
+      ctx.quadraticCurveTo(
+        paperRight - 15, paperTop - 15,
+        paperLeft, paperTop + 55
       );
       ctx.closePath();
-      ctx.fillStyle = '#FEFEFE';
+      ctx.fill();
+
+      // 纸的阴影
+      ctx.fillStyle = 'rgba(0,0,0,0.06)';
+      ctx.beginPath();
+      ctx.moveTo(paperRight, paperTop + 55);
+      ctx.lineTo(paperRight + 12, paperTop + 50);
+      ctx.lineTo(paperRight + 12, paperTop + 85);
+      ctx.lineTo(paperRight, paperTop + 90);
+      ctx.closePath();
       ctx.fill();
 
       // 虚线分隔（撕裂线）
-      ctx.strokeStyle = 'rgba(180, 175, 170, 0.5)';
+      ctx.strokeStyle = 'rgba(180, 175, 170, 0.4)';
       ctx.lineWidth = 1;
-      ctx.setLineDash([5, 5]);
-
-      const lineSpacing = 60;
-      for (let y = paperTopY + 80; y < paperBottomY - 20; y += lineSpacing) {
+      ctx.setLineDash([6, 6]);
+      const lineSpacing = 80;
+      for (let y = paperTop + 120; y < paperBottom - 20; y += lineSpacing) {
         ctx.beginPath();
-        ctx.moveTo(paperStartX + 5, y);
-        ctx.lineTo(paperStartX + paperWidth - 5, y);
+        ctx.moveTo(paperLeft + 10, y);
+        ctx.lineTo(paperRight - 10, y);
         ctx.stroke();
       }
       ctx.setLineDash([]);
-
-      // 纸的阴影（卷纸下方）
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
-      ctx.beginPath();
-      ctx.moveTo(cx - r * 0.2, cy + r - 5);
-      ctx.quadraticCurveTo(cx - r * 0.5, cy + r + 10, paperStartX + paperWidth, paperTopY + 60);
-      ctx.lineTo(paperStartX + paperWidth, paperTopY + 50);
-      ctx.quadraticCurveTo(cx - r * 0.4, cy + r, cx - r * 0.2, cy + r - 5);
-      ctx.fill();
     }
 
-    // ===== 2. 画卷纸（圆形侧面）=====
-    // 卷纸外圈 - 浅灰色
+    // ===== 3. 画卷纸圆柱体侧面（厚度）=====
+    ctx.fillStyle = '#E5E2DD';
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#E8E4E0';
+    ctx.moveTo(rollX - thickness - r * 0.25, rollY + r * ellipseRatioY * 0.6);
+    ctx.quadraticCurveTo(
+      rollX - thickness * 0.5, rollY + r * ellipseRatioY + 8,
+      rollX, rollY + r * ellipseRatioY
+    );
+    ctx.ellipse(rollX, rollY, r, r * ellipseRatioY, 0, Math.PI * 0.5, Math.PI * 0.2, true);
+    ctx.lineTo(rollX - thickness - r * 0.25, rollY + r * ellipseRatioY * 0.25);
+    ctx.closePath();
     ctx.fill();
 
-    // 卷纸内部 - 更浅
+    // ===== 4. 画卷纸端面（椭圆形）=====
+    // 外圈
     ctx.beginPath();
-    ctx.arc(cx, cy, r - 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#F0EEEC';
+    ctx.ellipse(rollX, rollY, r, r * ellipseRatioY, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#ECEAE6';
     ctx.fill();
 
-    // 卷纸层次纹理
-    ctx.strokeStyle = 'rgba(200, 195, 190, 0.3)';
+    // 层次纹理
+    ctx.strokeStyle = 'rgba(200, 195, 190, 0.2)';
     ctx.lineWidth = 1;
-    for (let i = core + 5; i < r - 5; i += 6) {
+    for (let i = core + 5; i < r - 3; i += 6) {
       ctx.beginPath();
-      ctx.arc(cx, cy, i, 0, Math.PI * 2);
+      ctx.ellipse(rollX, rollY, i, i * ellipseRatioY, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
     // 卷芯（和背景同色）
     ctx.beginPath();
-    ctx.arc(cx, cy, core, 0, Math.PI * 2);
+    ctx.ellipse(rollX, rollY, core, core * ellipseRatioY, 0, 0, Math.PI * 2);
     ctx.fillStyle = '#D4736C';
     ctx.fill();
   }
