@@ -40,6 +40,8 @@ export default class Main {
 
     this.time = 0;
     this.currentLevel = 1; // 当前关卡
+    this.isHomePage = true; // 是否在主页
+    this.unlockedLevels = 2; // 已解锁关卡数
 
     // 通关状态
     this.isVictory = false;
@@ -54,13 +56,43 @@ export default class Main {
       slotDeep: '#08080D'
     };
 
+    // ===== 第二关：卷纸 =====
+    this.rollCenterX = screenWidth * 0.58;
+    this.rollCenterY = screenHeight * 0.32;
+    this.rollMaxRadius = 70; // 最大半径（满卷）
+    this.rollCoreRadius = 22; // 卷芯半径
+    this.rollRadius = this.rollMaxRadius; // 当前半径
+    this.rollPaperLength = 0; // 已拉出的纸长度
+    this.rollDragY = 0; // 拖拽位置
+    this.rollHangLength = 180; // 自然下垂长度
+    this.rollPaperWidth = 90; // 纸的宽度
+    this.rollTotalPaper = 1000; // 总纸量（像素长度）
+    this.rollUsedPaper = 0; // 已用纸量
+    this.tornPapers = []; // 撕下来的纸
+
     this.init();
     this.loop();
   }
 
   init() {
-    this.createTissue();
     this.bindTouch();
+    // 开始在主页，不初始化关卡
+  }
+
+  initLevel() {
+    if (this.currentLevel === 1) {
+      this.createTissue();
+    } else if (this.currentLevel === 2) {
+      this.initRollPaper();
+    }
+  }
+
+  initRollPaper() {
+    this.rollRadius = this.rollMaxRadius;
+    this.rollPaperLength = 0;
+    this.rollUsedPaper = 0;
+    this.tornPapers = [];
+    this.rollHangLength = 40;
   }
 
   createTissue() {
@@ -101,38 +133,91 @@ export default class Main {
     wx.onTouchStart((e) => {
       const touch = e.touches[0];
 
+      // 主页：检测关卡按钮点击
+      if (this.isHomePage) {
+        if (this.levelButtons) {
+          for (const btn of this.levelButtons) {
+            if (btn.unlocked &&
+                touch.clientX >= btn.x && touch.clientX <= btn.x + btn.w &&
+                touch.clientY >= btn.y && touch.clientY <= btn.y + btn.h) {
+              this.startLevel(btn.id);
+              return;
+            }
+          }
+        }
+        return;
+      }
+
       // 检测主页按钮点击
       const btnX = 20;
       const btnY = 40;
-      const btnSize = 36;
+      const btnSize = this.currentLevel === 2 ? 44 : 36;
       if (touch.clientX >= btnX && touch.clientX <= btnX + btnSize &&
           touch.clientY >= btnY && touch.clientY <= btnY + btnSize) {
         this.onHomeClick();
         return;
       }
 
-      if (!this.currentTissue || this.currentTissue.pulled) return;
+      if (this.currentLevel === 1) {
+        // 第一关：抽纸巾
+        if (!this.currentTissue || this.currentTissue.pulled) return;
 
-      const cx = this.slotX + this.slotWidth / 2;
-      const tipY = this.slotY - this.tissueExposed - this.currentPull;
+        const cx = this.slotX + this.slotWidth / 2;
+        const tipY = this.slotY - this.tissueExposed - this.currentPull;
 
-      if (Math.abs(touch.clientX - cx) < this.tissueWidth + 50 &&
-          touch.clientY >= tipY - 50 &&
-          touch.clientY <= this.slotY + 50) {
-        this.isDragging = true;
-        this.dragStartY = touch.clientY;
+        if (Math.abs(touch.clientX - cx) < this.tissueWidth + 50 &&
+            touch.clientY >= tipY - 50 &&
+            touch.clientY <= this.slotY + 50) {
+          this.isDragging = true;
+          this.dragStartY = touch.clientY;
+        }
+      } else if (this.currentLevel === 2) {
+        // 第二关：卷纸 - 纸在卷纸左边
+        const cx = this.rollCenterX + 30;
+        const r = this.rollRadius;
+        const paperStartX = cx - r - 10;
+        const paperTopY = this.rollCenterY - r * 0.3 + 50;
+        const paperBottomY = paperTopY + this.rollHangLength + this.rollPaperLength;
+
+        if (touch.clientX >= paperStartX - 20 &&
+            touch.clientX <= paperStartX + this.rollPaperWidth + 40 &&
+            touch.clientY >= paperTopY - 30 &&
+            touch.clientY <= paperBottomY + 50) {
+          this.isDragging = true;
+          this.dragStartY = touch.clientY;
+        }
       }
     });
 
     wx.onTouchMove((e) => {
-      if (!this.isDragging || !this.currentTissue) return;
+      if (!this.isDragging) return;
 
-      const pull = this.dragStartY - e.touches[0].clientY;
-      const maxPull = this.tissueMaxPull * this.currentTissue.pullScale;
-      this.currentPull = Math.max(0, Math.min(pull, maxPull));
+      if (this.currentLevel === 1) {
+        if (!this.currentTissue) return;
+        const pull = this.dragStartY - e.touches[0].clientY;
+        const maxPull = this.tissueMaxPull * this.currentTissue.pullScale;
+        this.currentPull = Math.max(0, Math.min(pull, maxPull));
 
-      if (this.currentPull >= maxPull * 0.95) {
-        this.pullOut();
+        if (this.currentPull >= maxPull * 0.95) {
+          this.pullOut();
+        }
+      } else if (this.currentLevel === 2) {
+        // 卷纸：往下拉
+        const pull = e.touches[0].clientY - this.dragStartY;
+        if (pull > 0 && this.rollUsedPaper < this.rollTotalPaper) {
+          const pullAmount = pull * 0.5; // 拉动系数
+          this.rollPaperLength = Math.min(pullAmount, screenHeight * 0.5);
+
+          // 更新已用纸量和半径
+          const newUsed = Math.min(this.rollUsedPaper + pull * 0.3, this.rollTotalPaper);
+          if (newUsed > this.rollUsedPaper) {
+            this.rollUsedPaper = newUsed;
+            // 半径随纸量减少而减小
+            const usedRatio = this.rollUsedPaper / this.rollTotalPaper;
+            this.rollRadius = this.rollCoreRadius + (this.rollMaxRadius - this.rollCoreRadius) * (1 - usedRatio);
+          }
+          this.dragStartY = e.touches[0].clientY;
+        }
       }
     });
 
@@ -140,34 +225,76 @@ export default class Main {
       if (!this.isDragging) return;
       this.isDragging = false;
 
-      if (!this.currentTissue || this.currentTissue.pulled) return;
+      if (this.currentLevel === 1) {
+        if (!this.currentTissue || this.currentTissue.pulled) return;
 
-      const maxPull = this.tissueMaxPull * this.currentTissue.pullScale;
-      if (this.currentPull > maxPull * 0.7) {
-        this.pullOut();
-      } else {
-        this.currentPull = 0;
+        const maxPull = this.tissueMaxPull * this.currentTissue.pullScale;
+        if (this.currentPull > maxPull * 0.7) {
+          this.pullOut();
+        } else {
+          this.currentPull = 0;
+        }
+      } else if (this.currentLevel === 2) {
+        // 卷纸松手：纸飘落
+        if (this.rollPaperLength > 30) {
+          const cx = this.rollCenterX + 30;
+          const r = this.rollRadius;
+          const paperStartX = cx - r - 10;
+          const paperTopY = this.rollCenterY - r * 0.3 + 50;
+
+          this.tornPapers.push({
+            x: paperStartX + this.rollPaperWidth / 2,
+            y: paperTopY + this.rollHangLength / 2 + this.rollPaperLength / 2,
+            width: this.rollPaperWidth,
+            height: this.rollHangLength + this.rollPaperLength,
+            rotation: (Math.random() - 0.5) * 0.2,
+            rotationSpeed: (Math.random() - 0.5) * 0.05,
+            vx: (Math.random() - 0.5) * 2,
+            vy: 2,
+            gravity: 0.15
+          });
+        }
+        this.rollPaperLength = 0;
+        this.rollHangLength = 40; // 重置下垂长度
       }
     });
   }
 
   onHomeClick() {
-    // 返回主页逻辑（暂时弹出提示）
+    // 返回主页
     wx.showModal({
       title: '返回主页',
       content: '确定要返回主页吗？',
       success: (res) => {
         if (res.confirm) {
-          // 这里可以跳转到主页，暂时重置游戏
-          this.tissueCount = this.totalTissues;
-          this.pulledCount = 0;
-          this.fallingTissues = [];
-          this.confetti = [];
-          this.isVictory = false;
-          this.createTissue();
+          this.goToHomePage();
         }
       }
     });
+  }
+
+  goToHomePage() {
+    this.isHomePage = true;
+    this.isVictory = false;
+    this.confetti = [];
+    this.fallingTissues = [];
+    this.tornPapers = [];
+    this.restartBound = false;
+  }
+
+  startLevel(levelId) {
+    this.currentLevel = levelId;
+    this.isHomePage = false;
+    this.isVictory = false;
+
+    // 重置关卡状态
+    this.tissueCount = this.totalTissues;
+    this.pulledCount = 0;
+    this.fallingTissues = [];
+    this.confetti = [];
+    this.tornPapers = [];
+
+    this.initLevel();
   }
 
   pullOut() {
@@ -203,28 +330,136 @@ export default class Main {
   update() {
     this.time += 0.016;
 
-    for (let i = this.fallingTissues.length - 1; i >= 0; i--) {
-      const t = this.fallingTissues[i];
-      t.vy += t.gravity;
-      t.x += t.vx;
-      t.y += t.vy;
-      t.rotation += t.rotationSpeed;
-      t.vx += Math.sin(this.time * 2 + i) * 0.03;
-      t.vx *= 0.99;
+    if (this.currentLevel === 1) {
+      // 第一关：更新飘落的纸巾
+      for (let i = this.fallingTissues.length - 1; i >= 0; i--) {
+        const t = this.fallingTissues[i];
+        t.vy += t.gravity;
+        t.x += t.vx;
+        t.y += t.vy;
+        t.rotation += t.rotationSpeed;
+        t.vx += Math.sin(this.time * 2 + i) * 0.03;
+        t.vx *= 0.99;
 
-      if (t.y > screenHeight + 100) {
-        this.fallingTissues.splice(i, 1);
+        if (t.y > screenHeight + 100) {
+          this.fallingTissues.splice(i, 1);
+        }
+      }
+    } else if (this.currentLevel === 2) {
+      // 第二关：更新撕下的卷纸
+      for (let i = this.tornPapers.length - 1; i >= 0; i--) {
+        const p = this.tornPapers[i];
+        p.vy += p.gravity;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rotation += p.rotationSpeed;
+        p.vx *= 0.98;
+
+        if (p.y > screenHeight + 100) {
+          this.tornPapers.splice(i, 1);
+        }
       }
     }
   }
 
   render() {
-    ctx.fillStyle = '#F2E8DC';
+    if (this.isHomePage) {
+      this.renderHomePage();
+    } else if (this.currentLevel === 1) {
+      ctx.fillStyle = '#F2E8DC';
+      ctx.fillRect(0, 0, screenWidth, screenHeight);
+      this.drawHomeButton();
+      this.renderLevel1();
+    } else if (this.currentLevel === 2) {
+      this.renderLevel2();
+    }
+  }
+
+  renderHomePage() {
+    // 渐变背景
+    const grad = ctx.createLinearGradient(0, 0, 0, screenHeight);
+    grad.addColorStop(0, '#667eea');
+    grad.addColorStop(1, '#764ba2');
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, screenWidth, screenHeight);
 
-    // 左上角主页按钮
-    this.drawHomeButton();
+    // 标题
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 36px PingFang SC, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('纸巾大作战', screenWidth / 2, screenHeight * 0.15);
 
+    // 副标题
+    ctx.font = '16px PingFang SC, Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('选择关卡开始游戏', screenWidth / 2, screenHeight * 0.15 + 40);
+
+    // 关卡按钮
+    const levels = [
+      { id: 1, name: '抽纸巾', icon: '🧻', color: '#3498DB' },
+      { id: 2, name: '卷纸', icon: '🧻', color: '#D4736C' }
+    ];
+
+    const btnWidth = screenWidth * 0.7;
+    const btnHeight = 80;
+    const startY = screenHeight * 0.32;
+    const gap = 20;
+
+    levels.forEach((level, index) => {
+      const btnX = (screenWidth - btnWidth) / 2;
+      const btnY = startY + index * (btnHeight + gap);
+      const isUnlocked = level.id <= this.unlockedLevels;
+
+      // 保存按钮位置
+      if (!this.levelButtons) this.levelButtons = [];
+      this.levelButtons[index] = { x: btnX, y: btnY, w: btnWidth, h: btnHeight, id: level.id, unlocked: isUnlocked };
+
+      // 按钮背景
+      ctx.fillStyle = isUnlocked ? level.color : '#888';
+      ctx.shadowColor = 'rgba(0,0,0,0.3)';
+      ctx.shadowBlur = 10;
+      ctx.shadowOffsetY = 4;
+      this.roundRect(btnX, btnY, btnWidth, btnHeight, 16);
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+
+      // 关卡编号
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = 'bold 48px Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(level.id.toString(), btnX + 20, btnY + btnHeight - 18);
+
+      // 图标
+      ctx.font = '36px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(level.icon, btnX + btnWidth - 50, btnY + btnHeight / 2 + 12);
+
+      // 关卡名称
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 22px PingFang SC, Arial';
+      ctx.textAlign = 'left';
+      ctx.fillText(level.name, btnX + 70, btnY + btnHeight / 2 + 8);
+
+      // 锁定状态
+      if (!isUnlocked) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        this.roundRect(btnX, btnY, btnWidth, btnHeight, 16);
+        ctx.fill();
+
+        ctx.font = '32px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔒', screenWidth / 2, btnY + btnHeight / 2 + 10);
+      }
+    });
+
+    // 底部提示
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '12px PingFang SC, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('更多关卡开发中...', screenWidth / 2, screenHeight - 40);
+  }
+
+  renderLevel1() {
     // 标题
     ctx.fillStyle = '#333';
     ctx.font = 'bold 26px PingFang SC, Arial';
@@ -250,6 +485,191 @@ export default class Main {
     if (this.tissueCount <= 0 && !this.currentTissue) {
       this.drawVictory();
     }
+  }
+
+  renderLevel2() {
+    // 粉红色背景
+    ctx.fillStyle = '#D4736C';
+    ctx.fillRect(0, 0, screenWidth, screenHeight);
+
+    // 重绘主页按钮（粉色背景上用白色）
+    this.drawHomeButtonLevel2();
+
+    // 撕下的纸（在后面）
+    this.drawTornPapers();
+
+    // 卷纸和下垂的纸
+    this.drawRollPaperNew();
+
+    // 提示
+    if (this.rollUsedPaper < this.rollTotalPaper && !this.isDragging) {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '14px PingFang SC, Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('向下滑动拉纸', screenWidth / 2, screenHeight - 32);
+    }
+
+    // 通关检测
+    if (this.rollUsedPaper >= this.rollTotalPaper) {
+      this.drawVictory();
+    }
+  }
+
+  drawHomeButtonLevel2() {
+    const btnX = 20;
+    const btnY = 40;
+    const btnSize = 44;
+
+    // 白色圆形背景
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(btnX + btnSize / 2, btnY + btnSize / 2, btnSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 红色返回箭头
+    ctx.strokeStyle = '#D4736C';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const ax = btnX + btnSize / 2;
+    const ay = btnY + btnSize / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(ax + 6, ay - 8);
+    ctx.lineTo(ax - 4, ay);
+    ctx.lineTo(ax + 6, ay + 8);
+    ctx.stroke();
+
+    // 关卡数字
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`第${this.currentLevel}关`, btnX + btnSize / 2, btnY + btnSize + 20);
+  }
+
+  // ===== 第二关绘制函数 =====
+  drawRollPaperNew() {
+    const cx = this.rollCenterX + 30; // 稍微偏右
+    const cy = this.rollCenterY;
+    const r = this.rollRadius;
+    const core = this.rollCoreRadius;
+    const paperWidth = this.rollPaperWidth;
+    const hangLen = this.rollHangLength + this.rollPaperLength;
+
+    // ===== 1. 先画下垂的纸（在卷纸后面的部分）=====
+    if (this.rollUsedPaper < this.rollTotalPaper) {
+      // 纸从卷纸顶部弯曲下来
+      const paperStartX = cx - r - 10;
+      const paperTopY = cy - r * 0.3;
+      const paperBottomY = paperTopY + hangLen;
+
+      // 纸的主体（矩形部分）
+      ctx.fillStyle = '#FEFEFE';
+      ctx.beginPath();
+      ctx.moveTo(paperStartX, paperTopY + 50);
+      ctx.lineTo(paperStartX, paperBottomY);
+      ctx.lineTo(paperStartX + paperWidth, paperBottomY);
+      ctx.lineTo(paperStartX + paperWidth, paperTopY + 50);
+      ctx.closePath();
+      ctx.fill();
+
+      // 弯曲的顶部（连接卷纸）
+      ctx.beginPath();
+      ctx.moveTo(paperStartX + paperWidth, paperTopY + 50);
+      ctx.quadraticCurveTo(
+        paperStartX + paperWidth + 20, paperTopY,
+        cx - r * 0.7, cy - r + 5
+      );
+      // 卷纸表面弧线
+      ctx.arc(cx, cy, r, -Math.PI * 0.85, -Math.PI * 0.5, false);
+      ctx.lineTo(cx, cy - r);
+      ctx.quadraticCurveTo(
+        paperStartX + paperWidth * 0.5, paperTopY - 10,
+        paperStartX, paperTopY + 50
+      );
+      ctx.closePath();
+      ctx.fillStyle = '#FEFEFE';
+      ctx.fill();
+
+      // 虚线分隔（撕裂线）
+      ctx.strokeStyle = 'rgba(180, 175, 170, 0.5)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 5]);
+
+      const lineSpacing = 60;
+      for (let y = paperTopY + 80; y < paperBottomY - 20; y += lineSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(paperStartX + 5, y);
+        ctx.lineTo(paperStartX + paperWidth - 5, y);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // 纸的阴影（卷纸下方）
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.2, cy + r - 5);
+      ctx.quadraticCurveTo(cx - r * 0.5, cy + r + 10, paperStartX + paperWidth, paperTopY + 60);
+      ctx.lineTo(paperStartX + paperWidth, paperTopY + 50);
+      ctx.quadraticCurveTo(cx - r * 0.4, cy + r, cx - r * 0.2, cy + r - 5);
+      ctx.fill();
+    }
+
+    // ===== 2. 画卷纸（圆形侧面）=====
+    // 卷纸外圈 - 浅灰色
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#E8E4E0';
+    ctx.fill();
+
+    // 卷纸内部 - 更浅
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#F0EEEC';
+    ctx.fill();
+
+    // 卷纸层次纹理
+    ctx.strokeStyle = 'rgba(200, 195, 190, 0.3)';
+    ctx.lineWidth = 1;
+    for (let i = core + 5; i < r - 5; i += 6) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, i, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 卷芯（和背景同色）
+    ctx.beginPath();
+    ctx.arc(cx, cy, core, 0, Math.PI * 2);
+    ctx.fillStyle = '#D4736C';
+    ctx.fill();
+  }
+
+  drawTornPapers() {
+    this.tornPapers.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+
+      // 撕下的纸
+      ctx.fillStyle = '#FEFEFE';
+      ctx.fillRect(-p.width / 2, -p.height / 2, p.width, p.height);
+
+      // 虚线
+      ctx.strokeStyle = 'rgba(180, 175, 170, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      const lineY = -p.height / 2 + 30;
+      if (p.height > 60) {
+        ctx.beginPath();
+        ctx.moveTo(-p.width / 2 + 5, lineY);
+        ctx.lineTo(p.width / 2 - 5, lineY);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      ctx.restore();
+    });
   }
 
   drawHomeButton() {
@@ -753,32 +1173,49 @@ export default class Main {
     ctx.font = 'bold 18px PingFang SC, Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('下一关', screenWidth / 2, btnY + btnH / 2);
+    const btnText = this.currentLevel < 2 ? '下一关' : '返回主页';
+    ctx.fillText(btnText, screenWidth / 2, btnY + btnH / 2);
     ctx.textBaseline = 'alphabetic';
 
     // 保存按钮位置供点击检测
     this.nextLevelBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
 
-    // 绑定下一关点击
+    // 解锁下一关
+    if (this.currentLevel >= this.unlockedLevels && this.currentLevel < 2) {
+      this.unlockedLevels = this.currentLevel + 1;
+    }
+
+    // 检测是否还有下一关
+    const hasNextLevel = this.currentLevel < 2;
+
+    // 绑定点击
     if (!this.restartBound) {
       this.restartBound = true;
       const handler = (e) => {
         const touch = e.touches[0];
-        // 检测是否点击了下一关按钮
-        if (this.nextLevelBtn &&
-            touch.clientX >= this.nextLevelBtn.x &&
-            touch.clientX <= this.nextLevelBtn.x + this.nextLevelBtn.w &&
-            touch.clientY >= this.nextLevelBtn.y &&
-            touch.clientY <= this.nextLevelBtn.y + this.nextLevelBtn.h) {
-          this.currentLevel++;
-          this.tissueCount = this.totalTissues;
-          this.pulledCount = 0;
-          this.fallingTissues = [];
-          this.confetti = [];
-          this.isVictory = false;
-          this.createTissue();
-          this.restartBound = false;
-          wx.offTouchStart(handler);
+
+        if (hasNextLevel) {
+          // 检测是否点击了下一关按钮
+          if (this.nextLevelBtn &&
+              touch.clientX >= this.nextLevelBtn.x &&
+              touch.clientX <= this.nextLevelBtn.x + this.nextLevelBtn.w &&
+              touch.clientY >= this.nextLevelBtn.y &&
+              touch.clientY <= this.nextLevelBtn.y + this.nextLevelBtn.h) {
+            this.restartBound = false;
+            wx.offTouchStart(handler);
+            this.startLevel(this.currentLevel + 1);
+          }
+        } else {
+          // 最后一关，点击返回主页
+          if (this.nextLevelBtn &&
+              touch.clientX >= this.nextLevelBtn.x &&
+              touch.clientX <= this.nextLevelBtn.x + this.nextLevelBtn.w &&
+              touch.clientY >= this.nextLevelBtn.y &&
+              touch.clientY <= this.nextLevelBtn.y + this.nextLevelBtn.h) {
+            this.restartBound = false;
+            wx.offTouchStart(handler);
+            this.goToHomePage();
+          }
         }
       };
       setTimeout(() => wx.onTouchStart(handler), 500);
