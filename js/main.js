@@ -731,25 +731,55 @@ export default class Main {
     ctx.fillText('通关', screenWidth / 2, centerY + 70);
     ctx.shadowColor = 'transparent';
 
-    // 提示文字
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.font = '16px PingFang SC, Arial';
-    ctx.fillText('点击屏幕继续', screenWidth / 2, centerY + 130);
-
     ctx.textBaseline = 'alphabetic';
 
-    // 绑定重新开始
+    // 下一关按钮
+    const btnW = 140;
+    const btnH = 48;
+    const btnX = (screenWidth - btnW) / 2;
+    const btnY = centerY + 110;
+
+    // 按钮背景
+    ctx.fillStyle = '#4CAF50';
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 3;
+    this.roundRect(btnX, btnY, btnW, btnH, 24);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+
+    // 按钮文字
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 18px PingFang SC, Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('下一关', screenWidth / 2, btnY + btnH / 2);
+    ctx.textBaseline = 'alphabetic';
+
+    // 保存按钮位置供点击检测
+    this.nextLevelBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // 绑定下一关点击
     if (!this.restartBound) {
       this.restartBound = true;
-      const handler = () => {
-        this.tissueCount = this.totalTissues;
-        this.pulledCount = 0;
-        this.fallingTissues = [];
-        this.confetti = [];
-        this.isVictory = false;
-        this.createTissue();
-        this.restartBound = false;
-        wx.offTouchStart(handler);
+      const handler = (e) => {
+        const touch = e.touches[0];
+        // 检测是否点击了下一关按钮
+        if (this.nextLevelBtn &&
+            touch.clientX >= this.nextLevelBtn.x &&
+            touch.clientX <= this.nextLevelBtn.x + this.nextLevelBtn.w &&
+            touch.clientY >= this.nextLevelBtn.y &&
+            touch.clientY <= this.nextLevelBtn.y + this.nextLevelBtn.h) {
+          this.currentLevel++;
+          this.tissueCount = this.totalTissues;
+          this.pulledCount = 0;
+          this.fallingTissues = [];
+          this.confetti = [];
+          this.isVictory = false;
+          this.createTissue();
+          this.restartBound = false;
+          wx.offTouchStart(handler);
+        }
       };
       setTimeout(() => wx.onTouchStart(handler), 500);
     }
