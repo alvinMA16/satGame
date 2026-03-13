@@ -7,11 +7,11 @@ const ctx = canvas.getContext('2d');
  */
 export default class Main {
   constructor() {
-    // 纸巾盒
+    // 纸巾盒 - 位置靠下
     this.boxWidth = screenWidth * 0.72;
     this.boxHeight = this.boxWidth * 0.38;
     this.boxX = (screenWidth - this.boxWidth) / 2;
-    this.boxY = screenHeight * 0.48;
+    this.boxY = screenHeight * 0.62;
     this.boxDepth = 22;
 
     // 出纸口
@@ -20,98 +20,16 @@ export default class Main {
     this.slotX = this.boxX + (this.boxWidth - this.slotWidth) / 2;
     this.slotY = this.boxY - this.boxDepth / 2;
 
-    // 纸巾参数
-    this.tissueWidth = this.slotWidth * 0.65;
-    this.tissueHeight = this.tissueWidth * 0.75;
-    this.tissueExposed = 32;
-    this.tissueMaxPull = this.tissueHeight * 1.1;
+    // 纸巾参数 - 放大
+    this.tissueWidth = this.slotWidth * 0.85;
+    this.tissueHeight = this.tissueWidth * 0.9;
+    this.tissueExposed = 38;
+    this.tissueMaxPull = this.tissueHeight * 2.5; // 基础最大拉动距离
 
     // 20张纸巾
     this.totalTissues = 20;
     this.tissueCount = this.totalTissues;
     this.pulledCount = 0;
-
-    // 露出纸巾的样式（不规则形状）
-    this.exposedStyles = [
-      // 每个样式定义：左边缘点、顶部点、右边缘点（相对偏移）
-      {
-        name: 'crumpled-left',
-        leftEdge: [{ x: 0, y: 0 }, { x: -3, y: 0.3 }, { x: 2, y: 0.5 }, { x: -2, y: 0.7 }, { x: 0, y: 1 }],
-        topShape: [{ x: 0.1, y: 8 }, { x: 0.3, y: 3 }, { x: 0.5, y: 0 }, { x: 0.7, y: 5 }, { x: 0.9, y: 6 }],
-        rightEdge: [{ x: 0, y: 0 }, { x: 2, y: 0.25 }, { x: -1, y: 0.55 }, { x: 3, y: 0.8 }, { x: 0, y: 1 }],
-        folds: [0.35, 0.65]
-      },
-      {
-        name: 'peaked',
-        leftEdge: [{ x: 0, y: 0 }, { x: -2, y: 0.4 }, { x: 1, y: 0.7 }, { x: 0, y: 1 }],
-        topShape: [{ x: 0.15, y: 10 }, { x: 0.4, y: 4 }, { x: 0.5, y: -2 }, { x: 0.6, y: 4 }, { x: 0.85, y: 8 }],
-        rightEdge: [{ x: 0, y: 0 }, { x: 1, y: 0.35 }, { x: -2, y: 0.65 }, { x: 0, y: 1 }],
-        folds: [0.3, 0.55, 0.8]
-      },
-      {
-        name: 'folded-corner',
-        leftEdge: [{ x: 0, y: 0 }, { x: -4, y: 0.2 }, { x: -6, y: 0.35 }, { x: -2, y: 0.6 }, { x: 0, y: 1 }],
-        topShape: [{ x: 0.05, y: 12 }, { x: 0.2, y: 6 }, { x: 0.5, y: 3 }, { x: 0.8, y: 5 }, { x: 0.95, y: 9 }],
-        rightEdge: [{ x: 0, y: 0 }, { x: 2, y: 0.4 }, { x: 1, y: 0.7 }, { x: 0, y: 1 }],
-        folds: [0.4, 0.7]
-      },
-      {
-        name: 'wavy',
-        leftEdge: [{ x: 0, y: 0 }, { x: -2, y: 0.25 }, { x: 1, y: 0.5 }, { x: -2, y: 0.75 }, { x: 0, y: 1 }],
-        topShape: [{ x: 0.1, y: 6 }, { x: 0.25, y: 2 }, { x: 0.4, y: 5 }, { x: 0.6, y: 1 }, { x: 0.75, y: 4 }, { x: 0.9, y: 7 }],
-        rightEdge: [{ x: 0, y: 0 }, { x: 1, y: 0.3 }, { x: -1, y: 0.6 }, { x: 2, y: 0.85 }, { x: 0, y: 1 }],
-        folds: [0.25, 0.5, 0.75]
-      },
-      {
-        name: 'tilted-right',
-        leftEdge: [{ x: 0, y: 0 }, { x: 1, y: 0.4 }, { x: -1, y: 0.7 }, { x: 0, y: 1 }],
-        topShape: [{ x: 0.1, y: 5 }, { x: 0.35, y: 8 }, { x: 0.5, y: 6 }, { x: 0.7, y: 2 }, { x: 0.9, y: -1 }],
-        rightEdge: [{ x: 0, y: 0 }, { x: 3, y: 0.3 }, { x: 1, y: 0.6 }, { x: 0, y: 1 }],
-        folds: [0.35, 0.6]
-      },
-      {
-        name: 'bunched',
-        leftEdge: [{ x: 0, y: 0 }, { x: -3, y: 0.3 }, { x: -5, y: 0.5 }, { x: -3, y: 0.7 }, { x: 0, y: 1 }],
-        topShape: [{ x: 0.15, y: 4 }, { x: 0.35, y: -1 }, { x: 0.5, y: 2 }, { x: 0.65, y: -1 }, { x: 0.85, y: 5 }],
-        rightEdge: [{ x: 0, y: 0 }, { x: 3, y: 0.3 }, { x: 5, y: 0.5 }, { x: 3, y: 0.7 }, { x: 0, y: 1 }],
-        folds: [0.3, 0.5, 0.7]
-      }
-    ];
-
-    // 抽出来纸巾的样式（不规则矩形）
-    this.fallenStyles = [
-      {
-        name: 'curled-corners',
-        // 四个角的卷曲程度
-        corners: { tl: { x: 5, y: 8 }, tr: { x: -3, y: 6 }, bl: { x: 4, y: -5 }, br: { x: -6, y: -4 } },
-        edges: { top: 3, right: 2, bottom: 4, left: 2 },
-        creases: [{ y: 0.3, curve: 4 }, { y: 0.6, curve: -3 }]
-      },
-      {
-        name: 'folded-edge',
-        corners: { tl: { x: 3, y: 4 }, tr: { x: -8, y: 12 }, bl: { x: 2, y: -3 }, br: { x: -4, y: -6 } },
-        edges: { top: 5, right: 4, bottom: 2, left: 3 },
-        creases: [{ y: 0.4, curve: 5 }, { y: 0.7, curve: 2 }]
-      },
-      {
-        name: 'crinkled',
-        corners: { tl: { x: 4, y: 5 }, tr: { x: -5, y: 4 }, bl: { x: 6, y: -4 }, br: { x: -4, y: -5 } },
-        edges: { top: 4, right: 3, bottom: 5, left: 4 },
-        creases: [{ y: 0.25, curve: 3 }, { y: 0.5, curve: -4 }, { y: 0.75, curve: 3 }]
-      },
-      {
-        name: 'rolled-top',
-        corners: { tl: { x: 8, y: 15 }, tr: { x: -8, y: 14 }, bl: { x: 2, y: -2 }, br: { x: -2, y: -3 } },
-        edges: { top: 8, right: 3, bottom: 2, left: 3 },
-        creases: [{ y: 0.2, curve: 6 }, { y: 0.5, curve: 2 }]
-      },
-      {
-        name: 'loose',
-        corners: { tl: { x: 2, y: 3 }, tr: { x: -3, y: 4 }, bl: { x: 3, y: -3 }, br: { x: -2, y: -2 } },
-        edges: { top: 2, right: 2, bottom: 3, left: 2 },
-        creases: [{ y: 0.35, curve: 2 }, { y: 0.65, curve: -2 }]
-      }
-    ];
 
     this.currentTissue = null;
     this.currentPull = 0;
@@ -127,10 +45,7 @@ export default class Main {
       boxTop: '#5DADE2',
       boxSide: '#2471A3',
       boxHighlight: '#85C1E9',
-      slotDeep: '#08080D',
-      tissue: '#FEFEFE',
-      tissueShadow: '#F8F6F1',
-      tissueFold: '#E8E4DC'
+      slotDeep: '#08080D'
     };
 
     this.init();
@@ -148,24 +63,30 @@ export default class Main {
       return;
     }
 
-    const exposedStyle = this.exposedStyles[Math.floor(Math.random() * this.exposedStyles.length)];
-    const fallenStyle = this.fallenStyles[Math.floor(Math.random() * this.fallenStyles.length)];
+    // 多种露出形态
+    const tipShapes = ['center', 'left', 'right', 'double', 'leftCurl', 'rightCurl', 'wavy'];
 
-    // 预计算褶皱的随机偏移
-    const foldOffsets = exposedStyle.folds.map(() => ({
-      leftOffset: 5 + Math.random() * 3,
-      rightOffset: 5 + Math.random() * 3,
-      curve: (Math.random() - 0.5) * 4
-    }));
+    // 折叠层 - 真正的折叠遮挡效果
+    const numFolds = Math.floor(Math.random() * 3); // 0-2个折叠层
+    const folds = [];
+    for (let i = 0; i < numFolds; i++) {
+      folds.push({
+        side: Math.random() > 0.5 ? 'left' : 'right', // 从哪边折过来
+        startY: 0.1 + Math.random() * 0.3, // 折叠起始位置
+        height: 0.15 + Math.random() * 0.25, // 折叠部分的高度
+        width: 0.15 + Math.random() * 0.2, // 折叠部分的宽度
+        curl: Math.random() * 0.3 // 卷曲程度
+      });
+    }
 
     this.currentTissue = {
-      exposedStyle: exposedStyle,
-      fallenStyle: fallenStyle,
       pulled: false,
-      offsetX: (Math.random() - 0.5) * 8,
-      scale: 0.94 + Math.random() * 0.12,
-      tilt: (Math.random() - 0.5) * 0.06,
-      foldOffsets: foldOffsets
+      offsetX: (Math.random() - 0.5) * 5,
+      tilt: (Math.random() - 0.5) * 0.02,
+      tipShape: tipShapes[Math.floor(Math.random() * tipShapes.length)],
+      folds: folds, // 折叠层数组
+      softness: 0.8 + Math.random() * 0.4,
+      pullScale: 0.6 + Math.random() * 0.8 // 每张纸巾能拉的距离不同 (0.6~1.4倍)
     };
     this.currentPull = 0;
   }
@@ -178,7 +99,6 @@ export default class Main {
       const cx = this.slotX + this.slotWidth / 2;
       const tipY = this.slotY - this.tissueExposed - this.currentPull;
 
-      // 放宽触摸区域
       if (Math.abs(touch.clientX - cx) < this.tissueWidth + 50 &&
           touch.clientY >= tipY - 50 &&
           touch.clientY <= this.slotY + 50) {
@@ -191,9 +111,10 @@ export default class Main {
       if (!this.isDragging || !this.currentTissue) return;
 
       const pull = this.dragStartY - e.touches[0].clientY;
-      this.currentPull = Math.max(0, Math.min(pull, this.tissueMaxPull));
+      const maxPull = this.tissueMaxPull * this.currentTissue.pullScale;
+      this.currentPull = Math.max(0, Math.min(pull, maxPull));
 
-      if (this.currentPull >= this.tissueMaxPull * 0.95) {
+      if (this.currentPull >= maxPull * 0.95) {
         this.pullOut();
       }
     });
@@ -204,7 +125,8 @@ export default class Main {
 
       if (!this.currentTissue || this.currentTissue.pulled) return;
 
-      if (this.currentPull > this.tissueMaxPull * 0.7) {
+      const maxPull = this.tissueMaxPull * this.currentTissue.pullScale;
+      if (this.currentPull > maxPull * 0.7) {
         this.pullOut();
       } else {
         this.currentPull = 0;
@@ -222,14 +144,15 @@ export default class Main {
     this.fallingTissues.push({
       x: cx,
       y: tipY + this.tissueHeight / 2,
-      width: this.tissueWidth * t.scale,
-      height: this.tissueHeight * t.scale,
-      style: t.fallenStyle,
+      width: this.tissueWidth * 1.3,
+      height: this.tissueHeight * 1.4,
       rotation: t.tilt,
-      rotationSpeed: (Math.random() - 0.5) * 0.05,
+      rotationSpeed: (Math.random() - 0.5) * 0.04,
       vx: (Math.random() - 0.5) * 2,
-      vy: -2.5,
-      gravity: 0.22
+      vy: -2,
+      gravity: 0.18,
+      softness: t.softness,
+      phase: Math.random() * Math.PI * 2
     });
 
     this.tissueCount--;
@@ -250,7 +173,7 @@ export default class Main {
       t.x += t.vx;
       t.y += t.vy;
       t.rotation += t.rotationSpeed;
-      t.vx += Math.sin(this.time * 2 + i) * 0.04;
+      t.vx += Math.sin(this.time * 2 + i) * 0.03;
       t.vx *= 0.99;
 
       if (t.y > screenHeight + 100) {
@@ -274,7 +197,7 @@ export default class Main {
     this.drawSlotDepth();
     this.drawCurrentTissue();
     this.drawSlotRim();
-    this.drawTissueCounter(); // 纸巾盒上的计数
+    this.drawTissueCounter();
     this.drawFallingTissues();
 
     if (this.tissueCount > 0 && !this.isDragging) {
@@ -317,7 +240,6 @@ export default class Main {
     ctx.fillText('SOFT TISSUE', boxX + boxWidth / 2, boxY + boxHeight - 15);
   }
 
-  // 画圆角矩形
   roundRect(x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -332,30 +254,16 @@ export default class Main {
     ctx.closePath();
   }
 
-  // 纸巾盒上的倒计时
   drawTissueCounter() {
     const { boxX, boxY, boxWidth, boxHeight } = this;
-
-    // 计数器背景
     const counterX = boxX + boxWidth / 2;
-    const counterY = boxY + boxHeight * 0.35;
+    const counterY = boxY + boxHeight * 0.38;
 
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    this.roundRect(counterX - 35, counterY - 18, 70, 36, 8);
-    ctx.fill();
-
-    // 数字
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 28px Arial';
+    ctx.font = 'bold 32px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.tissueCount.toString(), counterX, counterY);
-
-    // "剩余"文字
-    ctx.font = '9px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.fillText('剩余', counterX, counterY + 22);
-
     ctx.textBaseline = 'alphabetic';
   }
 
@@ -404,100 +312,199 @@ export default class Main {
     ctx.stroke();
   }
 
+  // 绘制纸巾 - 多种形态 + 折叠 + 褶皱
   drawCurrentTissue() {
     if (!this.currentTissue || this.currentTissue.pulled) return;
 
     const t = this.currentTissue;
-    const style = t.exposedStyle;
     const cx = this.slotX + this.slotWidth / 2 + t.offsetX;
-
     const pullDist = this.currentPull;
     const exposed = this.tissueExposed + pullDist;
-    const tissueTop = this.slotY - exposed;
-    const tissueBottom = this.slotY + 5;
 
-    const w = this.tissueWidth * t.scale;
-    const h = tissueBottom - tissueTop;
+    const tipY = this.slotY - exposed;
+    const baseY = this.slotY + 8;
+    const w = this.tissueWidth;
 
     ctx.save();
-    ctx.translate(cx, tissueBottom);
+    ctx.translate(cx, this.slotY);
     ctx.rotate(t.tilt);
-    ctx.translate(-cx, -tissueBottom);
+    ctx.translate(-cx, -this.slotY);
 
-    // 构建不规则纸巾形状
+    // ===== 1. 先画主体纸巾 =====
     ctx.beginPath();
+    ctx.moveTo(cx - w * 0.4, baseY);
 
-    const leftX = cx - w * 0.45;
-    const rightX = cx + w * 0.45;
-
-    // 从左下开始
-    ctx.moveTo(leftX, tissueBottom);
-
-    // 左边缘（不规则）
-    style.leftEdge.forEach((pt, i) => {
-      if (i === 0) return;
-      const y = tissueBottom - h * pt.y;
-      const x = leftX + pt.x;
-      ctx.lineTo(x, y);
-    });
-
-    // 顶部（不规则形状）
-    style.topShape.forEach((pt) => {
-      const x = leftX + (rightX - leftX) * pt.x;
-      const y = tissueTop + pt.y;
-      ctx.lineTo(x, y);
-    });
-
-    // 右边缘（不规则）
-    style.rightEdge.forEach((pt) => {
-      const y = tissueTop + h * pt.y;
-      const x = rightX + pt.x;
-      ctx.lineTo(x, y);
-    });
-
+    // 根据形态绘制轮廓
+    this.drawTissueShape(t.tipShape, cx, w, tipY, exposed, baseY);
     ctx.closePath();
 
-    // 填充
-    ctx.shadowColor = 'rgba(0,0,0,0.08)';
-    ctx.shadowBlur = 4;
+    // 渐变填充
+    const tissueGrad = ctx.createLinearGradient(cx, tipY, cx, baseY);
+    tissueGrad.addColorStop(0, '#FFFFFF');
+    tissueGrad.addColorStop(0.4, '#FDFCFA');
+    tissueGrad.addColorStop(1, '#F7F6F2');
+
+    ctx.shadowColor = 'rgba(0,0,0,0.1)';
+    ctx.shadowBlur = 5;
     ctx.shadowOffsetY = 2;
-    ctx.fillStyle = this.colors.tissue;
+    ctx.fillStyle = tissueGrad;
     ctx.fill();
     ctx.shadowColor = 'transparent';
 
-    // 边缘
-    ctx.strokeStyle = this.colors.tissueFold;
+    ctx.strokeStyle = 'rgba(210, 205, 195, 0.35)';
     ctx.lineWidth = 0.5;
     ctx.stroke();
 
-    // 褶皱（使用预计算的偏移）
-    ctx.strokeStyle = this.colors.tissueFold;
-    ctx.lineWidth = 0.6;
-    style.folds.forEach((foldY, i) => {
-      const y = tissueTop + h * foldY;
-      if (y > tissueTop + 8 && y < tissueBottom - 3) {
-        const offset = t.foldOffsets[i];
-        const foldLeft = leftX + offset.leftOffset;
-        const foldRight = rightX - offset.rightOffset;
+    // ===== 2. 画折叠层（真正的遮挡效果）=====
+    this.drawTissueFolds(t, cx, w, tipY, exposed);
 
-        ctx.beginPath();
-        ctx.moveTo(foldLeft, y);
-        ctx.quadraticCurveTo((foldLeft + foldRight) / 2, y + offset.curve, foldRight, y);
-        ctx.stroke();
-      }
-    });
-
-    // 高光
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    const hlX = cx - w * 0.1;
-    const hlY = tissueTop + h * 0.3;
+    // ===== 3. 高光 =====
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    let hlX = cx - 3;
+    if (t.tipShape === 'left' || t.tipShape === 'leftCurl') hlX = cx - w * 0.12;
+    else if (t.tipShape === 'right' || t.tipShape === 'rightCurl') hlX = cx + w * 0.08;
     ctx.beginPath();
-    ctx.ellipse(hlX, hlY, w * 0.12, h * 0.06, -0.2, 0, Math.PI * 2);
+    ctx.ellipse(hlX, tipY + 14, 5, 3, -0.2, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
 
+  // 绘制纸巾轮廓形状
+  drawTissueShape(shape, cx, w, tipY, exposed, baseY) {
+    switch (shape) {
+      case 'left':
+        ctx.quadraticCurveTo(cx - w * 0.45, tipY + exposed * 0.5, cx - w * 0.3, tipY + exposed * 0.15);
+        ctx.quadraticCurveTo(cx - w * 0.15, tipY - 5, cx - w * 0.05, tipY);
+        ctx.quadraticCurveTo(cx + w * 0.1, tipY + 8, cx + w * 0.25, tipY + exposed * 0.35);
+        ctx.quadraticCurveTo(cx + w * 0.4, tipY + exposed * 0.55, cx + w * 0.4, baseY);
+        break;
+      case 'right':
+        ctx.quadraticCurveTo(cx - w * 0.4, tipY + exposed * 0.55, cx - w * 0.25, tipY + exposed * 0.35);
+        ctx.quadraticCurveTo(cx - w * 0.1, tipY + 8, cx + w * 0.05, tipY);
+        ctx.quadraticCurveTo(cx + w * 0.15, tipY - 5, cx + w * 0.3, tipY + exposed * 0.15);
+        ctx.quadraticCurveTo(cx + w * 0.45, tipY + exposed * 0.5, cx + w * 0.4, baseY);
+        break;
+      case 'double':
+        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.4, cx - w * 0.28, tipY + exposed * 0.1);
+        ctx.quadraticCurveTo(cx - w * 0.15, tipY - 3, cx - w * 0.08, tipY + 5);
+        ctx.quadraticCurveTo(cx, tipY + exposed * 0.18, cx + w * 0.08, tipY + 5);
+        ctx.quadraticCurveTo(cx + w * 0.15, tipY - 3, cx + w * 0.28, tipY + exposed * 0.1);
+        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.4, cx + w * 0.4, baseY);
+        break;
+      case 'leftCurl':
+        ctx.quadraticCurveTo(cx - w * 0.5, tipY + exposed * 0.3, cx - w * 0.35, tipY + exposed * 0.08);
+        ctx.bezierCurveTo(cx - w * 0.25, tipY - 8, cx - w * 0.1, tipY - 5, cx, tipY + 3);
+        ctx.quadraticCurveTo(cx + w * 0.2, tipY + exposed * 0.25, cx + w * 0.35, tipY + exposed * 0.4);
+        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.6, cx + w * 0.4, baseY);
+        break;
+      case 'rightCurl':
+        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.6, cx - w * 0.35, tipY + exposed * 0.4);
+        ctx.quadraticCurveTo(cx - w * 0.2, tipY + exposed * 0.25, cx, tipY + 3);
+        ctx.bezierCurveTo(cx + w * 0.1, tipY - 5, cx + w * 0.25, tipY - 8, cx + w * 0.35, tipY + exposed * 0.08);
+        ctx.quadraticCurveTo(cx + w * 0.5, tipY + exposed * 0.3, cx + w * 0.4, baseY);
+        break;
+      case 'wavy':
+        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.5, cx - w * 0.3, tipY + exposed * 0.2);
+        ctx.quadraticCurveTo(cx - w * 0.18, tipY + 2, cx - w * 0.08, tipY + exposed * 0.12);
+        ctx.quadraticCurveTo(cx, tipY - 2, cx + w * 0.08, tipY + exposed * 0.12);
+        ctx.quadraticCurveTo(cx + w * 0.18, tipY + 2, cx + w * 0.3, tipY + exposed * 0.2);
+        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.5, cx + w * 0.4, baseY);
+        break;
+      default: // center
+        ctx.quadraticCurveTo(cx - w * 0.42, tipY + exposed * 0.55, cx - w * 0.25, tipY + exposed * 0.25);
+        ctx.quadraticCurveTo(cx - w * 0.1, tipY + 5, cx, tipY);
+        ctx.quadraticCurveTo(cx + w * 0.1, tipY + 5, cx + w * 0.25, tipY + exposed * 0.25);
+        ctx.quadraticCurveTo(cx + w * 0.42, tipY + exposed * 0.55, cx + w * 0.4, baseY);
+    }
+  }
+
+  // 绘制折叠层 - 真正的前后遮挡效果
+  drawTissueFolds(t, cx, w, tipY, exposed) {
+    if (!t.folds || t.folds.length === 0) return;
+
+    t.folds.forEach((fold, index) => {
+      const foldY = tipY + exposed * fold.startY;
+      const foldH = exposed * fold.height;
+      const foldW = w * fold.width;
+      const isLeft = fold.side === 'left';
+
+      // 折叠层的位置
+      const baseX = isLeft ? cx - w * 0.3 : cx + w * 0.3;
+      const foldDir = isLeft ? 1 : -1;
+
+      ctx.save();
+
+      // 折叠层的阴影（表示它在上面）
+      ctx.shadowColor = 'rgba(0,0,0,0.08)';
+      ctx.shadowBlur = 3;
+      ctx.shadowOffsetX = foldDir * 2;
+      ctx.shadowOffsetY = 1;
+
+      // 画折叠过来的纸巾部分
+      ctx.beginPath();
+
+      // 折叠边缘（弯曲的边）
+      ctx.moveTo(baseX, foldY);
+
+      // 折叠过来的曲线
+      ctx.quadraticCurveTo(
+        baseX + foldDir * foldW * 0.3,
+        foldY + foldH * 0.2,
+        baseX + foldDir * foldW * (0.5 + fold.curl),
+        foldY + foldH * 0.35
+      );
+
+      // 折叠的底部
+      ctx.quadraticCurveTo(
+        baseX + foldDir * foldW * (0.6 + fold.curl * 0.5),
+        foldY + foldH * 0.7,
+        baseX + foldDir * foldW * 0.4,
+        foldY + foldH
+      );
+
+      // 返回到折叠边缘
+      ctx.quadraticCurveTo(
+        baseX + foldDir * foldW * 0.1,
+        foldY + foldH * 0.8,
+        baseX,
+        foldY + foldH * 0.9
+      );
+
+      ctx.closePath();
+
+      // 折叠层的渐变填充（稍微暗一点，表示是翻折过来的背面或有阴影）
+      const foldGrad = ctx.createLinearGradient(
+        baseX, foldY,
+        baseX + foldDir * foldW, foldY + foldH
+      );
+      foldGrad.addColorStop(0, '#FAFAF8');
+      foldGrad.addColorStop(0.5, '#F5F4F0');
+      foldGrad.addColorStop(1, '#EFEDE8');
+
+      ctx.fillStyle = foldGrad;
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+
+      // 折叠边缘的线（折痕）
+      ctx.strokeStyle = 'rgba(180, 175, 165, 0.4)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(baseX, foldY);
+      ctx.quadraticCurveTo(
+        baseX - foldDir * 2,
+        foldY + foldH * 0.5,
+        baseX,
+        foldY + foldH * 0.9
+      );
+      ctx.stroke();
+
+      ctx.restore();
+    });
+  }
+
+  // 飘落的纸巾 - 柔软飘逸
   drawFallingTissues() {
     this.fallingTissues.forEach(tissue => {
       ctx.save();
@@ -506,84 +513,68 @@ export default class Main {
 
       const w = tissue.width;
       const h = tissue.height;
-      const style = tissue.style;
-      const corners = style.corners;
-      const edges = style.edges;
+      const t = this.time;
+      const phase = tissue.phase;
+      const soft = tissue.softness;
 
-      // 动态波动
-      const wave = (base, phase) => base + Math.sin(this.time * 2.5 + phase) * 1.5;
-
+      // 柔软飘动的形状
       ctx.beginPath();
 
+      // 动态波动参数
+      const wave1 = Math.sin(t * 3 + phase) * 4 * soft;
+      const wave2 = Math.sin(t * 2.5 + phase + 1) * 3 * soft;
+      const wave3 = Math.sin(t * 2 + phase + 2) * 5 * soft;
+
       // 左上角
-      ctx.moveTo(-w/2 + wave(corners.tl.x, 0), -h/2 + wave(corners.tl.y, 1));
+      ctx.moveTo(-w/2 + wave1, -h/2 + wave2);
 
-      // 上边（波动）
-      const topSteps = 5;
-      for (let i = 1; i <= topSteps; i++) {
-        const t = i / topSteps;
-        const x = -w/2 + w * t + wave(0, i);
-        const y = -h/2 + Math.sin(t * Math.PI) * wave(edges.top, i * 0.5);
-        ctx.lineTo(x, y);
-      }
+      // 上边 - 柔软波浪
+      ctx.bezierCurveTo(
+        -w/4, -h/2 - wave1 * 0.5,
+        w/4, -h/2 + wave2 * 0.5,
+        w/2 + wave2, -h/2 + wave1
+      );
 
-      // 右上角
-      ctx.lineTo(w/2 + wave(corners.tr.x, 2), -h/2 + wave(corners.tr.y, 3));
+      // 右边 - 柔软波浪
+      ctx.bezierCurveTo(
+        w/2 + wave3 * 0.5, -h/4,
+        w/2 - wave1 * 0.5, h/4,
+        w/2 + wave1, h/2 - wave2
+      );
 
-      // 右边
-      const rightSteps = 4;
-      for (let i = 1; i < rightSteps; i++) {
-        const t = i / rightSteps;
-        const x = w/2 + Math.sin(t * Math.PI) * wave(edges.right, i);
-        const y = -h/2 + h * t;
-        ctx.lineTo(x, y);
-      }
+      // 下边 - 柔软波浪
+      ctx.bezierCurveTo(
+        w/4, h/2 + wave2 * 0.5,
+        -w/4, h/2 - wave1 * 0.5,
+        -w/2 + wave3, h/2 + wave1
+      );
 
-      // 右下角
-      ctx.lineTo(w/2 + wave(corners.br.x, 4), h/2 + wave(corners.br.y, 5));
-
-      // 下边
-      for (let i = topSteps - 1; i >= 0; i--) {
-        const t = i / topSteps;
-        const x = -w/2 + w * t + wave(0, i + 3);
-        const y = h/2 + Math.sin(t * Math.PI) * wave(edges.bottom, i * 0.5 + 2);
-        ctx.lineTo(x, y);
-      }
-
-      // 左下角
-      ctx.lineTo(-w/2 + wave(corners.bl.x, 6), h/2 + wave(corners.bl.y, 7));
-
-      // 左边
-      for (let i = rightSteps - 1; i > 0; i--) {
-        const t = i / rightSteps;
-        const x = -w/2 + Math.sin(t * Math.PI) * wave(edges.left, i + 2);
-        const y = -h/2 + h * t;
-        ctx.lineTo(x, y);
-      }
+      // 左边 - 柔软波浪
+      ctx.bezierCurveTo(
+        -w/2 - wave2 * 0.5, h/4,
+        -w/2 + wave1 * 0.5, -h/4,
+        -w/2 + wave1, -h/2 + wave2
+      );
 
       ctx.closePath();
 
-      ctx.fillStyle = this.colors.tissue;
+      // 柔软的渐变填充
+      const grad = ctx.createLinearGradient(-w/2, -h/2, w/2, h/2);
+      grad.addColorStop(0, '#FFFFFF');
+      grad.addColorStop(0.5, '#FCFCFA');
+      grad.addColorStop(1, '#F7F6F2');
+
       ctx.shadowColor = 'rgba(0,0,0,0.1)';
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = grad;
       ctx.fill();
 
       ctx.shadowBlur = 0;
-      ctx.strokeStyle = this.colors.tissueFold;
-      ctx.lineWidth = 0.4;
-      ctx.stroke();
 
-      // 折痕
-      ctx.strokeStyle = this.colors.tissueFold;
+      // 淡淡的边缘
+      ctx.strokeStyle = 'rgba(220, 215, 205, 0.3)';
       ctx.lineWidth = 0.5;
-      style.creases.forEach((crease, i) => {
-        const y = -h/2 + h * crease.y;
-        const curveAmt = wave(crease.curve, i * 2);
-        ctx.beginPath();
-        ctx.moveTo(-w/2 + 8, y);
-        ctx.quadraticCurveTo(0, y + curveAmt, w/2 - 8, y);
-        ctx.stroke();
-      });
+      ctx.stroke();
 
       ctx.restore();
     });
